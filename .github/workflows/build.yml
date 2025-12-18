@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write
 
+env:
+  PNPM_VERSION: '8.14.0'
+
 jobs:
   build:
     strategy:
@@ -36,15 +39,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      # Enable Corepack (built into Node 20+) to manage pnpm
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js with pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+      # Activate pinned pnpm version via Corepack (reads packageManager from package.json)
+      - name: Prepare pnpm via Corepack
+        run: |
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm --version
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -66,14 +75,6 @@ jobs:
             librsvg2-dev \
             libsecret-1-dev
 
-      - name: Cache pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -87,8 +88,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      # Install with retry logic for network flakes
       - name: Install frontend dependencies
-        run: pnpm install
+        run: |
+          pnpm install --frozen-lockfile || pnpm install --frozen-lockfile || pnpm install --frozen-lockfile
+        env:
+          CI: true
 
       - name: Build frontend
         working-directory: apps/desktop
@@ -116,15 +121,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js with pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
+      - name: Prepare pnpm via Corepack
+        run: |
+          corepack prepare pnpm@${{ env.PNPM_VERSION }} --activate
+          pnpm --version
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -143,8 +152,25 @@ jobs:
             librsvg2-dev \
             libsecret-1-dev
 
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            apps/desktop/src-tauri/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Install with retry logic for network flakes
       - name: Install frontend dependencies
-        run: pnpm install
+        run: |
+          pnpm install --frozen-lockfile || pnpm install --frozen-lockfile || pnpm install --frozen-lockfile
+        env:
+          CI: true
 
       - name: Build frontend (required for Tauri)
         working-directory: apps/desktop
@@ -179,4 +205,3 @@ jobs:
           files: artifacts/**/*
           draft: true
           generate_release_notes: true
-
