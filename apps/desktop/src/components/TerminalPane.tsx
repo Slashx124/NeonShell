@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -8,6 +8,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '@/stores/appStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useUIStore } from '@/stores/uiStore';
+import { WifiOff, RefreshCw, Loader2 } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 
 export function TerminalPane() {
@@ -22,24 +24,32 @@ export function TerminalPane() {
   // Check session state
   const session = activeTab.sessionId ? sessions.get(activeTab.sessionId) : null;
   const isConnecting = session?.state === 'Connecting' || session?.state === 'WaitingForHostKey';
+  const isDisconnected = session?.state === 'Disconnected';
   const isError = session?.state === 'Error';
 
   if (!activeTab.sessionId) {
     return <ConnectingState tab={activeTab} status="Initializing..." />;
   }
 
-  if (isConnecting) {
+  // For initial connection (before we have any session data)
+  if (isConnecting && !session?.connected_at) {
     return <ConnectingState tab={activeTab} status={session?.state === 'WaitingForHostKey' ? 'Waiting for host key verification...' : 'Connecting...'} />;
   }
 
-  if (isError) {
+  // For errors during initial connection (never connected)
+  if (isError && !session?.connected_at) {
     return <ErrorState tab={activeTab} />;
   }
 
-  // Show terminal even if state is not Connected yet - we want to see output as it comes
+  // Show terminal with overlay for disconnected/reconnecting states
+  // This preserves the terminal content while showing the reconnect UI
   return (
-    <div className="h-full w-full bg-surface-0">
-      <TerminalView sessionId={activeTab.sessionId} />
+    <div className="h-full w-full bg-surface-0 relative">
+      <TerminalView 
+        sessionId={activeTab.sessionId} 
+        isDisconnected={isDisconnected || isError}
+        isReconnecting={isConnecting && !!session?.connected_at}
+      />
     </div>
   );
 }
@@ -119,19 +129,97 @@ function ErrorState({ tab }: { tab: { title: string } }) {
   );
 }
 
-function TerminalView({ sessionId }: { sessionId: string }) {
+function TerminalView({ 
+  sessionId, 
+  isDisconnected = false,
+  isReconnecting = false,
+}: { 
+  sessionId: string;
+  isDisconnected?: boolean;
+  isReconnecting?: boolean;
+}) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
-  const { sendData, resizePty, registerDataHandler, unregisterDataHandler, sessions } = useSessionStore();
-  const { tabs } = useAppStore();
+  const [reconnectPending, setReconnectPending] = useState(false);
+  const { 
+    sendData, 
+    resizePty, 
+    registerDataHandler, 
+    unregisterDataHandler, 
+    sessions,
+    reconnect,
+  } = useSessionStore();
+  const { tabs, updateTab } = useAppStore();
   const { currentTheme } = useThemeStore();
+  const { addToast } = useUIStore();
   
   // Get profile ID from the tab or session
   const tab = tabs.find(t => t.sessionId === sessionId);
   const session = sessions.get(sessionId);
   const profileId = tab?.profileId || session?.profile_id;
+
+  // Handle reconnection
+  const handleReconnect = useCallback(async () => {
+    if (reconnectPending || isReconnecting) return;
+    
+    if (!profileId) {
+      addToast({
+        type: 'error',
+        title: 'Cannot reconnect',
+        message: 'This session was not saved. Please create a new connection.',
+      });
+      return;
+    }
+
+    setReconnectPending(true);
+    
+    // Write reconnecting message to terminal
+    if (xtermRef.current) {
+      xtermRef.current.write('\r\n\x1b[33m⟳ Reconnecting...\x1b[0m\r\n');
+    }
+
+    try {
+      const newSessionId = await reconnect(sessionId);
+      
+      if (newSessionId && tab) {
+        // Update the tab to use the new session
+        updateTab(tab.id, { sessionId: newSessionId });
+        
+        // Register our data handler for the new session
+        if (xtermRef.current) {
+          registerDataHandler(newSessionId, (data: Uint8Array) => {
+            xtermRef.current?.write(data);
+          });
+        }
+        
+        addToast({
+          type: 'success',
+          title: 'Reconnected',
+          message: `Connected to ${session?.host}`,
+        });
+        
+        // Write success message
+        if (xtermRef.current) {
+          xtermRef.current.write('\r\n\x1b[32m✓ Reconnected successfully\x1b[0m\r\n\r\n');
+        }
+      }
+    } catch (error) {
+      console.error('Reconnection failed:', error);
+      addToast({
+        type: 'error',
+        title: 'Reconnection failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+      
+      if (xtermRef.current) {
+        xtermRef.current.write(`\r\n\x1b[31m✗ Reconnection failed: ${error}\x1b[0m\r\n`);
+      }
+    } finally {
+      setReconnectPending(false);
+    }
+  }, [sessionId, profileId, reconnect, tab, updateTab, registerDataHandler, addToast, session, reconnectPending, isReconnecting]);
 
   // Data handler callback
   const handleData = useCallback((data: Uint8Array) => {
@@ -245,7 +333,17 @@ function TerminalView({ sessionId }: { sessionId: string }) {
     loadHistory(terminal);
 
     // Handle input - send keystrokes to SSH session
+    // If disconnected, trigger auto-reconnect on first keystroke
     terminal.onData((data) => {
+      const currentSession = useSessionStore.getState().sessions.get(sessionId);
+      
+      if (currentSession?.state === 'Disconnected' || currentSession?.state === 'Error') {
+        // Auto-reconnect on user input
+        console.log('[Terminal] User input while disconnected, triggering reconnect');
+        handleReconnect();
+        return; // Don't send data to dead session
+      }
+      
       const encoder = new TextEncoder();
       sendData(sessionId, encoder.encode(data));
     });
@@ -274,7 +372,7 @@ function TerminalView({ sessionId }: { sessionId: string }) {
       fitAddonRef.current = null;
       serializeAddonRef.current = null;
     };
-  }, [sessionId, sendData, resizePty, currentTheme, registerDataHandler, unregisterDataHandler, handleData, loadHistory, saveHistory]);
+  }, [sessionId, sendData, resizePty, currentTheme, registerDataHandler, unregisterDataHandler, handleData, loadHistory, saveHistory, handleReconnect]);
 
   // Handle window/panel resize
   useEffect(() => {
@@ -298,11 +396,94 @@ function TerminalView({ sessionId }: { sessionId: string }) {
     };
   }, []);
 
+  const showOverlay = isDisconnected || isReconnecting || reconnectPending;
+
   return (
-    <div 
-      ref={terminalRef} 
-      className="h-full w-full" 
-      style={{ padding: '8px', backgroundColor: 'var(--surface-0, #0a0a0f)' }}
-    />
+    <div className="h-full w-full relative">
+      {/* Terminal container */}
+      <div 
+        ref={terminalRef} 
+        className={`h-full w-full ${showOverlay ? 'opacity-50' : ''}`}
+        style={{ padding: '8px', backgroundColor: 'var(--surface-0, #0a0a0f)' }}
+      />
+      
+      {/* Disconnection overlay */}
+      {showOverlay && (
+        <DisconnectedOverlay
+          session={session}
+          isReconnecting={isReconnecting || reconnectPending}
+          canReconnect={!!profileId}
+          onReconnect={handleReconnect}
+        />
+      )}
+    </div>
+  );
+}
+
+function DisconnectedOverlay({
+  session,
+  isReconnecting,
+  canReconnect,
+  onReconnect,
+}: {
+  session?: { host: string; port: number; username: string; disconnect_reason?: string };
+  isReconnecting: boolean;
+  canReconnect: boolean;
+  onReconnect: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-surface-1 rounded-xl border border-border p-6 shadow-2xl max-w-md text-center">
+        {isReconnecting ? (
+          <>
+            <Loader2 className="w-12 h-12 text-accent mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Reconnecting...</h3>
+            <p className="text-sm text-foreground-muted">
+              Reconnecting to {session?.username}@{session?.host}:{session?.port}
+            </p>
+          </>
+        ) : (
+          <>
+            <WifiOff className="w-12 h-12 text-warning mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Connection Lost</h3>
+            <p className="text-sm text-foreground-muted mb-1">
+              Disconnected from {session?.username}@{session?.host}:{session?.port}
+            </p>
+            {session?.disconnect_reason && (
+              <p className="text-xs text-foreground-muted/70 mb-4">
+                {session.disconnect_reason}
+              </p>
+            )}
+            
+            {canReconnect ? (
+              <div className="space-y-3 mt-4">
+                <button
+                  onClick={onReconnect}
+                  className="btn btn-primary w-full flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Reconnect
+                </button>
+                <p className="text-xs text-foreground-muted">
+                  Or start typing to auto-reconnect
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <p className="text-xs text-foreground-muted mb-3">
+                  This session wasn't saved. Please create a new connection to reconnect.
+                </p>
+                <button
+                  onClick={() => useAppStore.getState().setShowConnectionDialog(true)}
+                  className="btn btn-primary"
+                >
+                  New Connection
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }

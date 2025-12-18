@@ -42,6 +42,9 @@ export interface Session {
   state: SessionState;
   profile_id?: string;
   connected_at?: number;
+  disconnected_at?: number;
+  disconnect_reason?: string;
+  reconnect_attempts?: number;
 }
 
 export interface Profile {
@@ -90,15 +93,21 @@ interface SessionStoreState {
   // Event handlers - set by terminal components
   dataHandlers: Map<string, (data: Uint8Array) => void>;
   
+  // Reconnection callbacks - terminal component can register to be notified
+  reconnectCallbacks: Map<string, () => void>;
+  
   // Session actions
   setActiveSession: (sessionId: string | null) => void;
   registerDataHandler: (sessionId: string, handler: (data: Uint8Array) => void) => void;
   unregisterDataHandler: (sessionId: string) => void;
+  registerReconnectCallback: (sessionId: string, callback: () => void) => void;
+  unregisterReconnectCallback: (sessionId: string) => void;
   
   // SSH actions
   disconnect: (sessionId: string) => Promise<void>;
   sendData: (sessionId: string, data: Uint8Array) => Promise<void>;
   resizePty: (sessionId: string, cols: number, rows: number) => Promise<void>;
+  reconnect: (sessionId: string) => Promise<string | null>;
   
   // Profile actions
   loadProfiles: () => Promise<void>;
@@ -116,6 +125,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   profiles: [],
   activeSessionId: null,
   dataHandlers: new Map(),
+  reconnectCallbacks: new Map(),
 
   setActiveSession: (sessionId) => {
     set({ activeSessionId: sessionId });
@@ -134,6 +144,22 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
       const handlers = new Map(state.dataHandlers);
       handlers.delete(sessionId);
       return { dataHandlers: handlers };
+    });
+  },
+
+  registerReconnectCallback: (sessionId, callback) => {
+    set((state) => {
+      const callbacks = new Map(state.reconnectCallbacks);
+      callbacks.set(sessionId, callback);
+      return { reconnectCallbacks: callbacks };
+    });
+  },
+
+  unregisterReconnectCallback: (sessionId) => {
+    set((state) => {
+      const callbacks = new Map(state.reconnectCallbacks);
+      callbacks.delete(sessionId);
+      return { reconnectCallbacks: callbacks };
     });
   },
 
@@ -159,6 +185,57 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
       await invoke('ssh_resize', { sessionId, cols, rows });
     } catch (error) {
       console.error('Failed to resize PTY:', error);
+    }
+  },
+
+  reconnect: async (sessionId) => {
+    const session = get().sessions.get(sessionId);
+    if (!session) {
+      console.error('[Reconnect] Session not found:', sessionId);
+      return null;
+    }
+
+    // Must have a profile_id to reconnect
+    if (!session.profile_id) {
+      console.error('[Reconnect] No profile_id for session:', sessionId);
+      return null;
+    }
+
+    // Update session state to Connecting
+    get().updateSession({
+      ...session,
+      state: 'Connecting',
+      reconnect_attempts: (session.reconnect_attempts || 0) + 1,
+    });
+
+    try {
+      console.log('[Reconnect] Attempting reconnection for profile:', session.profile_id);
+      
+      // Use connect_profile to reconnect using saved credentials
+      const result = await invoke<{ session_id: string; profile_id?: string }>('connect_profile', {
+        profileId: session.profile_id,
+      });
+
+      console.log('[Reconnect] Success, new session:', result.session_id);
+      
+      // Notify the terminal to switch to the new session
+      const callback = get().reconnectCallbacks.get(sessionId);
+      if (callback) {
+        callback();
+      }
+
+      return result.session_id;
+    } catch (error) {
+      console.error('[Reconnect] Failed:', error);
+      
+      // Update session state to reflect failure
+      get().updateSession({
+        ...session,
+        state: 'Disconnected',
+        disconnect_reason: `Reconnection failed: ${error}`,
+      });
+      
+      return null;
     }
   },
 
@@ -226,11 +303,16 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     // Listen for connection closed
     listen<SshClosedEvent>('ssh:closed', (event) => {
       console.log('[SSH] Closed:', event.payload);
-      // Update session state
+      // Update session state with disconnect info
       const sessions = get().sessions;
       const session = sessions.get(event.payload.session_id);
       if (session) {
-        get().updateSession({ ...session, state: 'Disconnected' });
+        get().updateSession({ 
+          ...session, 
+          state: 'Disconnected',
+          disconnected_at: Date.now(),
+          disconnect_reason: event.payload.reason || 'Connection closed',
+        });
       }
     }).then((fn) => unlisteners.push(fn));
 
