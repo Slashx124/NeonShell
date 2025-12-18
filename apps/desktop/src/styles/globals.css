@@ -1,0 +1,213 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables for theming */
+:root {
+  /* Surface colors */
+  --surface-0: #0a0a0f;
+  --surface-1: #12121a;
+  --surface-2: #1a1a24;
+  --surface-3: #22222e;
+
+  /* Accent colors */
+  --accent: #ff0080;
+  --accent-muted: #aa0055;
+
+  /* Text colors */
+  --foreground: #e0e0e0;
+  --foreground-muted: #888899;
+
+  /* Border colors */
+  --border: #333344;
+  --border-focus: #ff0080;
+
+  /* Semantic colors */
+  --error: #ff0055;
+  --warning: #ffaa00;
+  --success: #00ff9f;
+  --info: #00aaff;
+
+  /* Neon glow colors */
+  --neon-pink: #ff0080;
+  --neon-cyan: #00ffff;
+  --neon-purple: #bf00ff;
+  --neon-green: #00ff9f;
+}
+
+/* Base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--surface-0);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: white;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-muted);
+}
+
+/* Focus styles */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* xterm.js container */
+.xterm {
+  padding: 8px;
+  height: 100%;
+}
+
+.xterm-viewport {
+  overflow-y: auto !important;
+}
+
+/* Custom utility classes */
+@layer utilities {
+  .neon-glow {
+    box-shadow: 0 0 5px var(--accent), 0 0 10px var(--accent),
+      0 0 15px var(--accent);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+  }
+
+  .glass {
+    background: rgba(10, 10, 15, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    0% {
+      box-shadow: 0 0 5px var(--accent), 0 0 10px var(--accent),
+        0 0 15px var(--accent);
+    }
+    100% {
+      box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent),
+        0 0 30px var(--accent);
+    }
+  }
+
+  /* Scanline effect */
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.1) 2px,
+      rgba(0, 0, 0, 0.1) 4px
+    );
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* CRT flicker effect */
+  .crt-flicker {
+    animation: flicker 0.15s infinite;
+  }
+
+  @keyframes flicker {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.97;
+    }
+  }
+}
+
+/* Button styles */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  @apply bg-surface-2 text-foreground border border-border;
+  @apply hover:bg-surface-3 hover:border-accent;
+  @apply focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-0;
+}
+
+.btn-primary {
+  @apply bg-accent text-white border-accent;
+  @apply hover:bg-accent-muted;
+}
+
+.btn-ghost {
+  @apply bg-transparent border-transparent;
+  @apply hover:bg-surface-2;
+}
+
+/* Input styles */
+.input {
+  @apply px-3 py-2 rounded-lg font-mono text-sm;
+  @apply bg-surface-1 text-foreground border border-border;
+  @apply placeholder:text-foreground-muted;
+  @apply focus:border-accent focus:ring-1 focus:ring-accent;
+}
+
+/* Panel styles */
+.panel {
+  @apply bg-surface-1 rounded-xl border border-border;
+  @apply shadow-lg shadow-black/20;
+}
+
+/* Tab styles */
+.tab {
+  @apply px-4 py-2 text-sm font-medium;
+  @apply text-foreground-muted hover:text-foreground;
+  @apply border-b-2 border-transparent;
+  @apply transition-colors duration-200;
+}
+
+.tab-active {
+  @apply text-accent border-accent;
+}
+

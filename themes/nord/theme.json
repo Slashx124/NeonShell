@@ -1,0 +1,53 @@
+{
+  "id": "nord",
+  "name": "Nord Aurora",
+  "version": "1.0.0",
+  "author": "NeonShell Team",
+  "description": "A cool, arctic-inspired theme based on Nord's polar night and aurora colors",
+  "colors": {
+    "background": "#2e3440",
+    "foreground": "#eceff4",
+    "accent": "#88c0d0",
+    "accent_muted": "#5e81ac",
+    "surface_0": "#2e3440",
+    "surface_1": "#3b4252",
+    "surface_2": "#434c5e",
+    "surface_3": "#4c566a",
+    "border": "#4c566a",
+    "cursor": "#d8dee9",
+    "selection": "#4c566a",
+    "error": "#bf616a",
+    "warning": "#ebcb8b",
+    "success": "#a3be8c"
+  },
+  "terminal": {
+    "font_family": "JetBrains Mono",
+    "font_size": 14,
+    "ansi_colors": {
+      "black": "#3b4252",
+      "red": "#bf616a",
+      "green": "#a3be8c",
+      "yellow": "#ebcb8b",
+      "blue": "#81a1c1",
+      "magenta": "#b48ead",
+      "cyan": "#88c0d0",
+      "white": "#e5e9f0",
+      "bright_black": "#4c566a",
+      "bright_red": "#bf616a",
+      "bright_green": "#a3be8c",
+      "bright_yellow": "#ebcb8b",
+      "bright_blue": "#81a1c1",
+      "bright_magenta": "#b48ead",
+      "bright_cyan": "#8fbcbb",
+      "bright_white": "#eceff4"
+    }
+  },
+  "ui": {
+    "border_radius": "10px",
+    "shadows": true,
+    "animations": true,
+    "blur": true
+  },
+  "css_file": "styles.css"
+}
+

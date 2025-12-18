@@ -1,0 +1,150 @@
+/* Monokai Pro Theme for NeonShell */
+
+:root {
+  --surface-0: #2d2a2e;
+  --surface-1: #353236;
+  --surface-2: #403e41;
+  --surface-3: #4a474c;
+  --accent: #ffd866;
+  --accent-muted: #c9a93e;
+  --foreground: #fcfcfa;
+  --foreground-muted: #939293;
+  --border: #5b595c;
+  --border-focus: #ffd866;
+  --error: #ff6188;
+  --warning: #fc9867;
+  --success: #a9dc76;
+  --info: #78dce8;
+}
+
+/* Monokai warm glow */
+.neon-glow,
+.btn-primary {
+  box-shadow: 
+    0 0 5px rgba(255, 216, 102, 0.3),
+    0 0 10px rgba(255, 216, 102, 0.15);
+}
+
+.btn-primary:hover {
+  box-shadow: 
+    0 0 10px rgba(255, 216, 102, 0.5),
+    0 0 20px rgba(255, 216, 102, 0.25);
+}
+
+/* Logo text */
+.neon-text {
+  background: linear-gradient(135deg, #ffd866 0%, #fc9867 50%, #ff6188 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Terminal cursor */
+.xterm-cursor-block {
+  background-color: var(--accent) !important;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--surface-0);
+}
+
+/* Sidebar highlight */
+.sidebar-active {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(255, 216, 102, 0.1) 0%, transparent 100%);
+}
+
+/* Buttons */
+.btn {
+  transition: all 0.2s ease;
+  border-radius: 6px;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #ffd866 0%, #fc9867 100%);
+  color: var(--surface-0);
+  border: none;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #ffe699 0%, #ffd866 100%);
+}
+
+/* Input fields */
+.input {
+  border-radius: 6px;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 5px rgba(255, 216, 102, 0.25);
+}
+
+/* Tabs */
+.tab {
+  position: relative;
+}
+
+.tab-active {
+  color: var(--accent);
+}
+
+.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--warning));
+}
+
+/* Panels */
+.panel {
+  background: var(--surface-1);
+  border-radius: 6px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-muted);
+}
+
+/* Status indicators */
+.status-connected {
+  color: var(--success);
+}
+
+.status-disconnected {
+  color: var(--error);
+}
+
+/* Command palette */
+.command-palette {
+  border: 1px solid var(--accent);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 216, 102, 0.1);
+}
+

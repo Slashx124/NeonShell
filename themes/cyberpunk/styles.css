@@ -1,0 +1,208 @@
+/* Cyberpunk 2077 Theme for NeonShell */
+
+:root {
+  /* Override CSS variables */
+  --surface-0: #0a0a0f;
+  --surface-1: #111118;
+  --surface-2: #1a1a22;
+  --surface-3: #24242e;
+  --accent: #00f0ff;
+  --accent-muted: #0099aa;
+  --foreground: #fcee0a;
+  --foreground-muted: #fcee0a88;
+  --border: #00f0ff33;
+  --border-focus: #00f0ff;
+  --error: #ff003c;
+  --warning: #fcee0a;
+  --success: #00ff9f;
+}
+
+/* Cyberpunk scanline effect */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 240, 255, 0.03) 0px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Glitch effect on hover */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+/* Cyber glow effect */
+.neon-glow,
+.btn-primary {
+  box-shadow: 
+    0 0 5px var(--accent),
+    0 0 10px var(--accent),
+    0 0 20px var(--accent),
+    inset 0 0 5px rgba(0, 240, 255, 0.1);
+}
+
+/* Terminal cursor */
+.xterm-cursor-block {
+  background-color: var(--foreground) !important;
+  box-shadow: 
+    0 0 5px var(--foreground),
+    0 0 10px var(--foreground);
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: #000;
+}
+
+/* Sidebar accent */
+.sidebar-active {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.1) 0%, transparent 100%);
+}
+
+/* Buttons */
+.btn {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  box-shadow: 
+    0 0 10px rgba(0, 240, 255, 0.3),
+    inset 0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-muted) 100%);
+  color: #000;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #55ffff 0%, var(--accent) 100%);
+}
+
+/* Input fields */
+.input {
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 
+    0 0 5px rgba(0, 240, 255, 0.3),
+    inset 0 0 5px rgba(0, 240, 255, 0.1);
+}
+
+/* Tabs */
+.tab {
+  position: relative;
+  overflow: hidden;
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.tab:hover::after,
+.tab-active::after {
+  transform: scaleX(1);
+}
+
+/* Panels */
+.panel {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
+}
+
+/* Status bar */
+.status-bar {
+  background: linear-gradient(90deg, var(--surface-1) 0%, var(--surface-0) 50%, var(--surface-1) 100%);
+  border-top: 1px solid var(--border);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Connection status indicators */
+.status-connected {
+  color: var(--success);
+  text-shadow: 0 0 5px var(--success);
+}
+
+.status-disconnected {
+  color: var(--error);
+  text-shadow: 0 0 5px var(--error);
+}
+
+/* Command palette */
+.command-palette {
+  border: 1px solid var(--accent);
+  box-shadow: 
+    0 0 20px rgba(0, 240, 255, 0.2),
+    inset 0 0 20px rgba(0, 240, 255, 0.05);
+}
+
+/* ASCII art header style */
+.logo-text {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--foreground);
+  text-shadow: 
+    0 0 5px var(--foreground),
+    0 0 10px var(--foreground),
+    0 0 20px var(--foreground);
+  animation: flicker 3s infinite;
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.97; }
+  52% { opacity: 0.9; }
+  54% { opacity: 1; }
+}
+

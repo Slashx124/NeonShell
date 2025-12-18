@@ -1,0 +1,108 @@
+/* Dracula Theme for NeonShell */
+
+:root {
+  --surface-0: #282a36;
+  --surface-1: #2d303d;
+  --surface-2: #343746;
+  --surface-3: #3b3f51;
+  --accent: #bd93f9;
+  --accent-muted: #6272a4;
+  --foreground: #f8f8f2;
+  --foreground-muted: #6272a4;
+  --border: #44475a;
+  --border-focus: #bd93f9;
+  --error: #ff5555;
+  --warning: #ffb86c;
+  --success: #50fa7b;
+  --info: #8be9fd;
+}
+
+/* Dracula glow effect */
+.neon-glow,
+.btn-primary {
+  box-shadow: 
+    0 0 5px rgba(189, 147, 249, 0.3),
+    0 0 10px rgba(189, 147, 249, 0.2),
+    0 0 15px rgba(189, 147, 249, 0.1);
+}
+
+.btn-primary:hover {
+  box-shadow: 
+    0 0 10px rgba(189, 147, 249, 0.4),
+    0 0 20px rgba(189, 147, 249, 0.3),
+    0 0 30px rgba(189, 147, 249, 0.2);
+}
+
+/* Terminal cursor */
+.xterm-cursor-block {
+  background-color: var(--foreground) !important;
+}
+
+/* Selection */
+::selection {
+  background: var(--accent);
+  color: var(--surface-0);
+}
+
+/* Sidebar highlight */
+.sidebar-active {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(189, 147, 249, 0.1) 0%, transparent 100%);
+}
+
+/* Buttons */
+.btn {
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #bd93f9 0%, #6272a4 100%);
+  color: var(--surface-0);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #caa6ff 0%, #bd93f9 100%);
+}
+
+/* Input fields */
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 5px rgba(189, 147, 249, 0.3);
+}
+
+/* Tabs */
+.tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Panels */
+.panel {
+  background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar-thumb {
+  background: var(--accent-muted);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Status indicators */
+.status-connected {
+  color: var(--success);
+  text-shadow: 0 0 5px var(--success);
+}
+
+.status-disconnected {
+  color: var(--error);
+  text-shadow: 0 0 5px var(--error);
+}
+

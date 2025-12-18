@@ -1,0 +1,19 @@
+{
+  "name": "@neonshell/plugin-api",
+  "version": "1.0.0",
+  "description": "NeonShell Plugin API types and contracts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT"
+}
+

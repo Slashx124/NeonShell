@@ -1,0 +1,53 @@
+{
+  "id": "cyberpunk",
+  "name": "Cyberpunk 2077",
+  "version": "1.0.0",
+  "author": "NeonShell Team",
+  "description": "A vibrant cyberpunk theme inspired by Night City",
+  "colors": {
+    "background": "#0a0a0f",
+    "foreground": "#fcee0a",
+    "accent": "#00f0ff",
+    "accent_muted": "#0099aa",
+    "surface_0": "#0a0a0f",
+    "surface_1": "#111118",
+    "surface_2": "#1a1a22",
+    "surface_3": "#24242e",
+    "border": "#00f0ff33",
+    "cursor": "#fcee0a",
+    "selection": "#00f0ff44",
+    "error": "#ff003c",
+    "warning": "#fcee0a",
+    "success": "#00ff9f"
+  },
+  "terminal": {
+    "font_family": "JetBrains Mono",
+    "font_size": 14,
+    "ansi_colors": {
+      "black": "#0a0a0f",
+      "red": "#ff003c",
+      "green": "#00ff9f",
+      "yellow": "#fcee0a",
+      "blue": "#00f0ff",
+      "magenta": "#ff00a0",
+      "cyan": "#00f0ff",
+      "white": "#ffffff",
+      "bright_black": "#333344",
+      "bright_red": "#ff3366",
+      "bright_green": "#55ffbb",
+      "bright_yellow": "#ffff55",
+      "bright_blue": "#55ffff",
+      "bright_magenta": "#ff55cc",
+      "bright_cyan": "#55ffff",
+      "bright_white": "#ffffff"
+    }
+  },
+  "ui": {
+    "border_radius": "4px",
+    "shadows": true,
+    "animations": true,
+    "blur": true
+  },
+  "css_file": "styles.css"
+}
+

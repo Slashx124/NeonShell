@@ -1,0 +1,27 @@
+{
+  "name": "neonshell",
+  "version": "0.1.0",
+  "description": "OG Myspace for SSH nerds - A fast, stable, extremely customizable SSH terminal",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @neonshell/desktop dev",
+    "build": "pnpm --filter @neonshell/desktop build",
+    "preview": "pnpm --filter @neonshell/desktop preview",
+    "test": "pnpm -r test",
+    "test:frontend": "pnpm --filter @neonshell/desktop test",
+    "test:e2e": "pnpm --filter @neonshell/desktop test:e2e",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.14.0"
+}
+

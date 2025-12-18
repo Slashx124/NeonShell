@@ -1,0 +1,13 @@
+{
+  "id": "starter-plugin",
+  "name": "Starter Plugin",
+  "version": "1.0.0",
+  "api_version": "1",
+  "description": "A minimal example plugin demonstrating the NeonShell plugin API",
+  "author": "NeonShell Team",
+  "homepage": "https://github.com/yourorg/neonshell",
+  "main": "index.js",
+  "permissions": ["notifications", "terminal"],
+  "signed": false
+}
+
