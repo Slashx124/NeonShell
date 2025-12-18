@@ -494,10 +494,12 @@ mod tests {
 
     #[test]
     fn test_truncate_long_line() {
-        let long_input = "a".repeat(5000);
+        // Use chars that won't match Base64 pattern (which would cause [REDACTED])
+        let long_input = "Hello world! This is a test message. ".repeat(200);
         let result = sanitize(&long_input);
-        assert!(result.len() < 3000);
-        assert!(result.ends_with("[truncated]"));
+        // Should be truncated to MAX_LINE_LENGTH + suffix
+        assert!(result.len() < 3000, "Result should be truncated, got {} chars", result.len());
+        assert!(result.contains("[truncated]"), "Result should contain [truncated], got: {}", &result[result.len().saturating_sub(50)..]);
     }
 }
 

@@ -790,9 +790,22 @@ mod tests {
     
     #[test]
     fn test_normalize_path() {
-        let base = PathBuf::from("/home/user/config");
-        let result = normalize_path(&base.join("../../../etc/passwd"));
-        assert!(!result.to_string_lossy().contains("etc/passwd") || 
-                result.starts_with(&normalize_path(&base)));
+        // Test that normalize_path correctly resolves .. components
+        let path1 = PathBuf::from("/home/user/config/subdir/..");
+        let result1 = normalize_path(&path1);
+        assert_eq!(result1, PathBuf::from("/home/user/config"));
+        
+        // Test that . components are removed
+        let path2 = PathBuf::from("/home/./user/./config");
+        let result2 = normalize_path(&path2);
+        assert_eq!(result2, PathBuf::from("/home/user/config"));
+        
+        // Test relative paths stay relative
+        let path3 = PathBuf::from("foo/bar/../baz");
+        let result3 = normalize_path(&path3);
+        assert_eq!(result3, PathBuf::from("foo/baz"));
+        
+        // Note: normalize_path does NOT enforce security boundaries.
+        // Callers must validate the result is within allowed directories.
     }
 }
