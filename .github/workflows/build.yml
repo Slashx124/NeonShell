@@ -205,17 +205,36 @@ jobs:
           echo "Downloaded artifacts:"
           find artifacts -type f -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.app" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.tar.gz" | head -50
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          # Find and copy release files, handling duplicates by keeping newest
+          find artifacts -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" \) | while read f; do
+            filename=$(basename "$f")
+            # Only copy if not already exists, or if this one is newer
+            if [ ! -f "release-files/$filename" ]; then
+              cp "$f" "release-files/"
+              echo "Copied: $filename"
+            fi
+          done
+          # Also copy .app.tar.gz files (macOS app bundles)
+          find artifacts -type f -name "*.app.tar.gz" | while read f; do
+            # Rename to include architecture to avoid duplicates
+            dir=$(dirname "$f")
+            if [[ "$dir" == *"aarch64"* ]]; then
+              cp "$f" "release-files/NeonShell_aarch64.app.tar.gz"
+            elif [[ "$dir" == *"x86_64"* ]]; then
+              cp "$f" "release-files/NeonShell_x64.app.tar.gz"
+            fi
+          done
+          echo "=== Release files ==="
+          ls -la release-files/
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.msi
-            artifacts/**/*.dmg
-            artifacts/**/*.app.tar.gz
-            artifacts/**/*.deb
-            artifacts/**/*.AppImage
-            artifacts/**/*.rpm
+          files: release-files/*
+          fail_on_unmatched_files: false
           draft: false
           generate_release_notes: true
           name: NeonShell ${{ github.ref_name }}
