@@ -1,6 +1,6 @@
 [package]
 name = "neonshell"
-version = "0.2.0"
+version = "0.2.1"
 description = "OG Myspace for SSH nerds - A fast, stable, extremely customizable SSH terminal"
 authors = ["NeonShell Contributors"]
 license = "MIT"
