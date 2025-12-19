@@ -40,6 +40,10 @@ toml_edit = "0.22"
 # Keychain / Secret storage
 keyring = "2"
 
+# Encryption for fallback secret storage (Linux without Secret Service)
+aes-gcm = "0.10"
+rand = "0.8"
+
 # Utils
 thiserror = "1"
 anyhow = "1"

@@ -1,5 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { Sidebar } from '@/components/Sidebar';
 import { TabBar } from '@/components/TabBar';
 import { TerminalPane } from '@/components/TerminalPane';
@@ -15,6 +17,19 @@ import { useThemeStore } from '@/stores/themeStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useLogStore } from '@/stores/logStore';
 import { getCommands, matchesShortcut, type CommandContext } from '@/lib/commandRegistry';
+
+interface KeyringStatus {
+  available: boolean;
+  backend: string;
+  using_fallback: boolean;
+  warning: string | null;
+}
+
+interface KeychainWarningEvent {
+  title: string;
+  message: string;
+  severity: string;
+}
 
 export function App() {
   const { 
@@ -65,12 +80,41 @@ export function App() {
     
     // Setup log event listeners
     const cleanupLog = setupLogListeners();
+    
+    // Setup keychain warning listener
+    const unlisteners: UnlistenFn[] = [];
+    
+    listen<KeychainWarningEvent>('keychain:fallback_warning', (event) => {
+      console.warn('[Keychain] Fallback warning:', event.payload);
+      addToast({
+        type: 'warning',
+        title: event.payload.title,
+        message: event.payload.message,
+        duration: 15000, // Show for 15 seconds
+      });
+    }).then((fn) => unlisteners.push(fn));
+    
+    // Check keyring status on startup
+    invoke<KeyringStatus>('get_keyring_status').then((status) => {
+      console.log('[Keychain] Status:', status);
+      if (status.using_fallback && status.warning) {
+        addToast({
+          type: 'warning',
+          title: '⚠️ Insecure Secret Storage',
+          message: status.warning,
+          duration: 20000, // Show for 20 seconds
+        });
+      }
+    }).catch((err) => {
+      console.error('[Keychain] Failed to get status:', err);
+    });
 
     return () => {
       cleanupSession();
       cleanupLog();
+      unlisteners.forEach((fn) => fn());
     };
-  }, [loadTheme, loadProfiles, setupListeners, setupLogListeners]);
+  }, [loadTheme, loadProfiles, setupListeners, setupLogListeners, addToast]);
 
   useEffect(() => {
     // Register keyboard shortcuts

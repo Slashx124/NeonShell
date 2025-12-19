@@ -104,6 +104,12 @@ pub async fn has_secret(key: String) -> AppResult<bool> {
     super::has_secret(&key)
 }
 
+/// Get the current keyring status (availability, backend, warnings)
+#[tauri::command]
+pub async fn get_keyring_status() -> super::KeyringStatus {
+    super::get_keyring_status()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

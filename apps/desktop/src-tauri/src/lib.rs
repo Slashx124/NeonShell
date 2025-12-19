@@ -77,6 +77,7 @@ pub fn create_app() -> tauri::Builder<tauri::Wry> {
             keychain::commands::get_secret,
             keychain::commands::delete_secret,
             keychain::commands::has_secret,
+            keychain::commands::get_keyring_status,
             // Plugin commands
             plugins::commands::list_plugins,
             plugins::commands::get_plugin,
