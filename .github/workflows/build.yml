@@ -207,28 +207,32 @@ jobs:
 
       - name: Prepare release files
         run: |
+          # Get version from tag (e.g., v0.2.0 -> 0.2.0)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Building release for version: $VERSION"
+          
           mkdir -p release-files
-          # Find and copy release files, handling duplicates by keeping newest
-          find artifacts -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" \) | while read f; do
+          
+          # Find and copy ONLY files matching current version
+          find artifacts -type f \( -name "*${VERSION}*.exe" -o -name "*${VERSION}*.msi" -o -name "*${VERSION}*.dmg" -o -name "*${VERSION}*.deb" -o -name "*${VERSION}*.AppImage" -o -name "*${VERSION}*.rpm" \) | while read f; do
             filename=$(basename "$f")
-            # Only copy if not already exists, or if this one is newer
             if [ ! -f "release-files/$filename" ]; then
               cp "$f" "release-files/"
               echo "Copied: $filename"
             fi
           done
-          # Also copy .app.tar.gz files (macOS app bundles)
-          find artifacts -type f -name "*.app.tar.gz" | while read f; do
-            # Rename to include architecture to avoid duplicates
-            dir=$(dirname "$f")
-            if [[ "$dir" == *"aarch64"* ]]; then
-              cp "$f" "release-files/NeonShell_aarch64.app.tar.gz"
-            elif [[ "$dir" == *"x86_64"* ]]; then
-              cp "$f" "release-files/NeonShell_x64.app.tar.gz"
-            fi
-          done
-          echo "=== Release files ==="
+          
+          # Count files
+          FILE_COUNT=$(ls -1 release-files/ 2>/dev/null | wc -l)
+          echo "=== Release files ($FILE_COUNT) ==="
           ls -la release-files/
+          
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "ERROR: No release files found for version $VERSION!"
+            echo "Available artifacts:"
+            find artifacts -type f -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" | head -20
+            exit 1
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

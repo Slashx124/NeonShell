@@ -10,9 +10,8 @@
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/></a>
-  <a href="https://github.com/yourorg/neonshell/actions"><img src="https://github.com/yourorg/neonshell/actions/workflows/build.yml/badge.svg" alt="Build"/></a>
-  <a href="https://github.com/yourorg/neonshell/releases"><img src="https://img.shields.io/github/v/release/yourorg/neonshell?include_prereleases" alt="Release"/></a>
-  <a href="https://discord.gg/neonshell"><img src="https://img.shields.io/discord/000000000000000000?logo=discord" alt="Discord"/></a>
+  <a href="https://github.com/Slashx124/NeonShell/actions"><img src="https://github.com/Slashx124/NeonShell/actions/workflows/build.yml/badge.svg" alt="Build"/></a>
+  <a href="https://github.com/Slashx124/NeonShell/releases"><img src="https://img.shields.io/github/v/release/Slashx124/NeonShell?include_prereleases" alt="Release"/></a>
 </p>
 
 <p align="center">
@@ -93,13 +92,16 @@ Tired of boring, cookie-cutter terminals? **NeonShell** brings the aesthetic ene
 
 ### Download
 
-| Platform | Download |
-|----------|----------|
-| **Windows** | [NeonShell-x64-setup.exe](https://github.com/yourorg/neonshell/releases/latest) |
-| **macOS (Intel)** | [NeonShell-x64.dmg](https://github.com/yourorg/neonshell/releases/latest) |
-| **macOS (Apple Silicon)** | [NeonShell-arm64.dmg](https://github.com/yourorg/neonshell/releases/latest) |
-| **Linux (Debian/Ubuntu)** | [neonshell_amd64.deb](https://github.com/yourorg/neonshell/releases/latest) |
-| **Linux (AppImage)** | [NeonShell.AppImage](https://github.com/yourorg/neonshell/releases/latest) |
+**[📥 Download Latest Release](https://github.com/Slashx124/NeonShell/releases/latest)**
+
+| Platform | File |
+|----------|------|
+| **Windows** | `NeonShell_x.x.x_x64-setup.exe` or `.msi` |
+| **macOS (Intel)** | `NeonShell_x.x.x_x64.dmg` |
+| **macOS (Apple Silicon)** | `NeonShell_x.x.x_aarch64.dmg` |
+| **Linux (Debian/Ubuntu)** | `NeonShell_x.x.x_amd64.deb` |
+| **Linux (AppImage)** | `NeonShell_x.x.x_amd64.AppImage` |
+| **Linux (RPM)** | `NeonShell-x.x.x-1.x86_64.rpm` |
 
 ### Package Managers
 

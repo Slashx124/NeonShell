@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "OG Myspace for SSH nerds - A fast, stable, extremely customizable SSH terminal"
 authors = ["NeonShell Contributors"]
 license = "MIT"
-repository = "https://github.com/yourorg/neonshell"
+repository = "https://github.com/Slashx124/NeonShell"
 edition = "2021"
 
 [build-dependencies]
