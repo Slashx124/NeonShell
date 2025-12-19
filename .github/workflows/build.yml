@@ -3,11 +3,19 @@ name: Build
 on:
   push:
     branches: [main]
-    tags:
-      - 'v*'
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a GitHub release with artifacts'
+        required: false
+        default: false
+        type: boolean
+      version_tag:
+        description: 'Version tag for release (e.g., v0.2.1)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -189,12 +197,17 @@ jobs:
           cargo clippy -- -D warnings || true
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'
     needs: [build, test]
     runs-on: ubuntu-22.04
     name: Release
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -207,8 +220,14 @@ jobs:
 
       - name: Prepare release files
         run: |
-          # Get version from tag (e.g., v0.2.0 -> 0.2.0)
-          VERSION="${GITHUB_REF_NAME#v}"
+          # Get version from input or extract from package.json
+          VERSION="${{ github.event.inputs.version_tag }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+          
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: version_tag input is required for releases"
+            exit 1
+          fi
           echo "Building release for version: $VERSION"
           
           mkdir -p release-files
@@ -234,16 +253,26 @@ jobs:
             exit 1
           fi
 
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ github.event.inputs.version_tag }}" -m "Release ${{ github.event.inputs.version_tag }}"
+          git push origin "${{ github.event.inputs.version_tag }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.inputs.version_tag }}
           files: release-files/*
           fail_on_unmatched_files: false
           draft: false
           generate_release_notes: true
-          name: NeonShell ${{ github.ref_name }}
+          name: NeonShell ${{ github.event.inputs.version_tag }}
           body: |
-            ## NeonShell ${{ github.ref_name }}
+            ## NeonShell ${{ github.event.inputs.version_tag }}
             
             ### Downloads
             
@@ -259,5 +288,7 @@ jobs:
             **Windows**: Download the `.exe` installer and run it.
             **macOS**: Download the `.dmg`, open it, and drag NeonShell to Applications.
             **Linux**: Download the `.AppImage` (make executable) or `.deb` package.
+            
+            Full Changelog: https://github.com/Slashx124/NeonShell/commits/${{ github.event.inputs.version_tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

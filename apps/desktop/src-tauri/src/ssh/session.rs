@@ -699,6 +699,7 @@ impl SessionHandle {
         let keepalive_interval = Duration::from_secs(self.config.keepalive_interval as u64);
         let mut consecutive_errors = 0;
         const MAX_CONSECUTIVE_ERRORS: u32 = 5;
+        const MAX_READ_ERRORS: u32 = 50; // Treat as disconnect after this many read errors
         let mut pending: Vec<u8> = Vec::new();
         let mut read_error_count: u32 = 0;
         
@@ -786,19 +787,43 @@ impl SessionHandle {
                         if Self::is_recoverable_error(&err_str) {
                             break;
                         }
+                        
                         read_error_count += 1;
-                        tracing::warn!(
-                            "Read error (session {}): {}; count={}",
-                            self.id,
-                            e,
-                            read_error_count
-                        );
+                        consecutive_errors += 1;
+                        
+                        // Rate-limit warnings: only log first error, then every 50th, or at threshold
+                        if read_error_count == 1 || read_error_count % 50 == 0 || read_error_count == MAX_READ_ERRORS {
+                            tracing::warn!(
+                                "Read error (session {}): {}; count={}",
+                                self.id,
+                                e,
+                                read_error_count
+                            );
+                        }
+                        
+                        // Check if we've hit the threshold for persistent read errors
+                        if read_error_count >= MAX_READ_ERRORS {
+                            tracing::error!(
+                                "Connection lost (session {}): {} consecutive read errors, last: {}",
+                                self.id,
+                                read_error_count,
+                                e
+                            );
+                            let _ = self.app_handle.emit("ssh:error", serde_json::json!({
+                                "session_id": self.id,
+                                "message": "Connection lost - transport read failed"
+                            }));
+                            // Set a flag to break the outer loop
+                            consecutive_errors = MAX_CONSECUTIVE_ERRORS + 1;
+                            break;
+                        }
+                        
                         if channel.eof() {
                             tracing::info!("EOF after read error (session {}): {}", self.id, e);
                             break;
                         }
                         // brief backoff
-                        thread::sleep(Duration::from_millis(5));
+                        thread::sleep(Duration::from_millis(10));
                         break;
                     }
                 }
