@@ -14,6 +14,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '@/stores/appStore';
 import { useSessionStore, Profile } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
+import { SftpBrowser } from './SftpBrowser';
 import { clsx } from 'clsx';
 
 const tabs = [
@@ -284,11 +285,41 @@ function SnippetsList() {
 }
 
 function FilesList() {
+  const { profiles } = useSessionStore();
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  
+  if (profiles.length === 0) {
+    return (
+      <div className="text-center text-foreground-muted py-8">
+        <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <p className="text-sm">No connections saved</p>
+        <p className="text-xs mt-1">Save a connection to browse files via SFTP</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="text-center text-foreground-muted py-8">
-      <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-      <p className="text-sm">Connect to a host</p>
-      <p className="text-xs mt-1">Browse files via SFTP</p>
+    <div className="h-full flex flex-col">
+      {/* Profile selector */}
+      <div className="p-2 border-b border-border">
+        <select
+          value={selectedProfileId || ''}
+          onChange={(e) => setSelectedProfileId(e.target.value || null)}
+          className="w-full px-2 py-1.5 bg-surface-0 border border-border rounded text-sm focus:outline-none focus:border-accent"
+        >
+          <option value="">Select a server...</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>
+              {profile.name} ({profile.username}@{profile.host})
+            </option>
+          ))}
+        </select>
+      </div>
+      
+      {/* SFTP Browser */}
+      <div className="flex-1 overflow-hidden">
+        <SftpBrowser profileId={selectedProfileId} />
+      </div>
     </div>
   );
 }

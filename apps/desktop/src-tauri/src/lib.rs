@@ -5,6 +5,7 @@ pub mod keychain;
 pub mod logging;
 pub mod plugins;
 pub mod python;
+pub mod sftp;
 pub mod ssh;
 pub mod state;
 
@@ -105,6 +106,15 @@ pub fn create_app() -> tauri::Builder<tauri::Wry> {
             logging::commands::export_debug_bundle,
             logging::commands::get_logs_dir,
             logging::commands::reveal_in_explorer,
+            // SFTP commands
+            sftp::commands::sftp_list,
+            sftp::commands::sftp_stat,
+            sftp::commands::sftp_download,
+            sftp::commands::sftp_upload,
+            sftp::commands::sftp_mkdir,
+            sftp::commands::sftp_delete,
+            sftp::commands::sftp_rename,
+            sftp::commands::sftp_home,
         ])
 }
 
