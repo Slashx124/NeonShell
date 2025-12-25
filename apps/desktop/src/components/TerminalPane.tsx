@@ -358,8 +358,7 @@ function TerminalView({
       cursorStyle: cursorStyleMap[terminalSettings.cursor_style] || 'block',
       allowTransparency: true,
       scrollback: terminalSettings.scrollback || 10000,
-      bellSound: terminalSettings.bell_sound ? 'sound' : undefined,
-      bellStyle: terminalSettings.bell_visual ? 'both' : (terminalSettings.bell_sound ? 'sound' : 'none'),
+      // Note: xterm.js v5 removed bellSound/bellStyle - bell is controlled via CSS/theme
       theme: {
         background: colors?.surface_0 || '#0a0a0f',
         foreground: colors?.foreground || '#e0e0e0',

@@ -14,8 +14,8 @@ export interface SessionConfig {
 }
 
 export type AuthMethod =
-  | { type: 'password' }
-  | { type: 'key' }
+  | { type: 'password'; password_key?: string }
+  | { type: 'key'; key_id?: string }
   | { type: 'agent' }
   | { type: 'interactive' };
 

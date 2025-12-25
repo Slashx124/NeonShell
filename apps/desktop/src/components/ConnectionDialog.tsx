@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Server, Key, User, Lock, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/stores/appStore';
-import { useSessionStore, Profile } from '@/stores/sessionStore';
+import { useSessionStore, Profile, AuthMethod } from '@/stores/sessionStore';
 import { invoke } from '@tauri-apps/api/core';
 import { clsx } from 'clsx';
 
@@ -89,18 +89,18 @@ export function ConnectionDialog() {
     setConnecting(true);
 
     try {
-      // Build auth method for profile
-      let authMethod: { type: string; password_key?: string; key_id?: string };
+      // Build auth method for profile - use type assertion for proper discriminated union
+      let authMethod: AuthMethod;
       switch (authType) {
         case 'password':
-          authMethod = { type: 'password', password_key: `password:${editingProfile.id}` };
+          authMethod = { type: 'password' as const, password_key: `password:${editingProfile.id}` };
           break;
         case 'key':
-          authMethod = { type: 'key', key_id: `key:${editingProfile.id}` };
+          authMethod = { type: 'key' as const, key_id: `key:${editingProfile.id}` };
           break;
         case 'agent':
         default:
-          authMethod = { type: 'agent' };
+          authMethod = { type: 'agent' as const };
       }
 
       // Update profile
