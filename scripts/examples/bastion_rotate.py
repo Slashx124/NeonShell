@@ -282,3 +282,6 @@ def assign_to_profile():
     # This would integrate with the profile system
     show_notification("Open profile settings to assign bastion groups", type="info")
 
+
+
+

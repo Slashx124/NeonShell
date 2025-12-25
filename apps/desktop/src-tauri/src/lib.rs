@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod config;
 pub mod error;
 pub mod history;
@@ -116,6 +117,18 @@ pub fn create_app() -> tauri::Builder<tauri::Wry> {
             sftp::commands::sftp_delete,
             sftp::commands::sftp_rename,
             sftp::commands::sftp_home,
+            // AI commands
+            ai::commands::get_ai_settings,
+            ai::commands::save_ai_settings,
+            ai::commands::get_models,
+            ai::commands::ai_chat,
+            ai::commands::check_ollama,
+            ai::commands::store_personal_key,
+            ai::commands::delete_personal_key,
+            ai::commands::gateway_auth_start,
+            ai::commands::gateway_auth_poll,
+            ai::commands::gateway_logout,
+            ai::commands::is_gateway_authenticated,
         ])
 }
 

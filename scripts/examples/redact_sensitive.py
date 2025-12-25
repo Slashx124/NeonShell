@@ -272,3 +272,6 @@ def test_redaction():
     else:
         show_notification("No patterns matched", type="info")
 
+
+
+

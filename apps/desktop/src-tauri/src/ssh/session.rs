@@ -319,9 +319,49 @@ impl SessionHandle {
         // Enable SSH keepalive to prevent timeout
         ssh_session.set_keepalive(true, self.config.keepalive_interval);
         
+        // Configure algorithm preferences to maximize compatibility
+        // Key exchange algorithms - try modern ones first, fall back to older ones
+        let _ = ssh_session.method_pref(
+            ssh2::MethodType::Kex,
+            "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1"
+        );
+        
+        // Host key algorithms
+        let _ = ssh_session.method_pref(
+            ssh2::MethodType::HostKey,
+            "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa,ssh-dss"
+        );
+        
+        // Encryption algorithms (ciphers)
+        let _ = ssh_session.method_pref(
+            ssh2::MethodType::CryptCs,
+            "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc"
+        );
+        let _ = ssh_session.method_pref(
+            ssh2::MethodType::CryptSc,
+            "aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc"
+        );
+        
+        // MAC algorithms
+        let _ = ssh_session.method_pref(
+            ssh2::MethodType::MacCs,
+            "hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1"
+        );
+        let _ = ssh_session.method_pref(
+            ssh2::MethodType::MacSc,
+            "hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1"
+        );
+        
         // SSH handshake
         ssh_session.handshake()
-            .map_err(|e| AppError::Ssh(format!("SSH handshake failed: {}", e)))?;
+            .map_err(|e| {
+                // Log supported methods for debugging
+                let methods = ssh_session.supported_algs(ssh2::MethodType::Kex)
+                    .map(|m| m.join(", "))
+                    .unwrap_or_else(|_| "unknown".to_string());
+                tracing::error!("Handshake failed. Supported KEX algorithms: {}", methods);
+                AppError::Ssh(format!("SSH handshake failed: {}. This may be due to algorithm incompatibility between client and server.", e))
+            })?;
 
         // Verify host key
         self.verify_host_key(&ssh_session, &config_dir)?;

@@ -9,8 +9,21 @@ import { useAppStore } from '@/stores/appStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { WifiOff, RefreshCw, Loader2 } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
+
+// Global registry to track active terminals per session (prevents duplicates during HMR)
+// Key: sessionId, Value: { terminal, dispose function }
+const activeTerminals = new Map<string, { 
+  terminal: Terminal; 
+  dispose: () => void;
+  initialized: boolean;
+}>();
+
+// Track which session IDs have had their onData handler set up
+// This prevents duplicate keystroke handlers
+const initializedSessions = new Set<string>();
 
 export function TerminalPane() {
   const { tabs, activeTabId } = useAppStore();
@@ -38,7 +51,7 @@ export function TerminalPane() {
 
   // For errors during initial connection (never connected)
   if (isError && !session?.connected_at) {
-    return <ErrorState tab={activeTab} />;
+    return <ErrorState tab={activeTab} errorMessage={session?.error_message} />;
   }
 
   // Show terminal with overlay for disconnected/reconnecting states
@@ -46,6 +59,7 @@ export function TerminalPane() {
   return (
     <div className="h-full w-full bg-surface-0 relative">
       <TerminalView 
+        key={activeTab.sessionId}
         sessionId={activeTab.sessionId} 
         isDisconnected={isDisconnected || isError}
         isReconnecting={isConnecting && !!session?.connected_at}
@@ -107,7 +121,7 @@ function ConnectingState({ tab, status }: { tab: { title: string }; status: stri
   );
 }
 
-function ErrorState({ tab }: { tab: { title: string } }) {
+function ErrorState({ tab, errorMessage }: { tab: { title: string }; errorMessage?: string }) {
   const { setShowConnectionDialog } = useAppStore();
 
   return (
@@ -115,9 +129,14 @@ function ErrorState({ tab }: { tab: { title: string } }) {
       <div className="text-center max-w-md">
         <div className="text-6xl mb-4">⚠️</div>
         <h2 className="text-xl font-bold mb-2 text-error">Connection Failed</h2>
-        <p className="text-sm text-foreground-muted mb-6">
+        <p className="text-sm text-foreground-muted mb-2">
           Failed to connect to {tab.title}
         </p>
+        {errorMessage && (
+          <p className="text-xs text-foreground-muted/80 mb-4 px-4 py-2 bg-surface-1 rounded-lg border border-border">
+            {errorMessage}
+          </p>
+        )}
         <button
           onClick={() => setShowConnectionDialog(true)}
           className="btn btn-primary"
@@ -142,6 +161,7 @@ function TerminalView({
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const serializeAddonRef = useRef<SerializeAddon | null>(null);
+  const initIdRef = useRef<string | null>(null);
   const [reconnectPending, setReconnectPending] = useState(false);
   const { 
     sendData, 
@@ -154,11 +174,24 @@ function TerminalView({
   const { tabs, updateTab } = useAppStore();
   const { currentTheme } = useThemeStore();
   const { addToast } = useUIStore();
+  const { settings } = useSettingsStore();
   
   // Get profile ID from the tab or session
   const tab = tabs.find(t => t.sessionId === sessionId);
   const session = sessions.get(sessionId);
   const profileId = tab?.profileId || session?.profile_id;
+  
+  // Get terminal settings with defaults
+  const terminalSettings = settings?.terminal ?? {
+    font_family: 'JetBrains Mono',
+    font_size: 14,
+    cursor_style: 'block' as const,
+    cursor_blink: true,
+    scrollback: 10000,
+    copy_on_select: true,
+    bell_sound: false,
+    bell_visual: false,
+  };
 
   // Handle reconnection
   const handleReconnect = useCallback(async () => {
@@ -185,14 +218,9 @@ function TerminalView({
       
       if (newSessionId && tab) {
         // Update the tab to use the new session
+        // Note: Don't register data handler here - the useEffect will handle it
+        // when the component re-renders with the new sessionId
         updateTab(tab.id, { sessionId: newSessionId });
-        
-        // Register our data handler for the new session
-        if (xtermRef.current) {
-          registerDataHandler(newSessionId, (data: Uint8Array) => {
-            xtermRef.current?.write(data);
-          });
-        }
         
         addToast({
           type: 'success',
@@ -219,7 +247,7 @@ function TerminalView({
     } finally {
       setReconnectPending(false);
     }
-  }, [sessionId, profileId, reconnect, tab, updateTab, registerDataHandler, addToast, session, reconnectPending, isReconnecting]);
+  }, [sessionId, profileId, reconnect, tab, updateTab, addToast, session, reconnectPending, isReconnecting]);
 
   // Data handler callback
   const handleData = useCallback((data: Uint8Array) => {
@@ -270,39 +298,89 @@ function TerminalView({
 
   // Initialize terminal
   useEffect(() => {
-    if (!terminalRef.current || xtermRef.current) return;
+    if (!terminalRef.current) return;
+    
+    // CRITICAL: Check if this session already has an active terminal
+    // This prevents duplicate terminals and duplicate keystroke handlers
+    const existing = activeTerminals.get(sessionId);
+    if (existing && existing.initialized) {
+      console.log('[Terminal] Session already has active terminal, reusing:', sessionId);
+      xtermRef.current = existing.terminal;
+      // Re-attach to DOM if needed
+      if (terminalRef.current && !terminalRef.current.querySelector('.xterm')) {
+        existing.terminal.open(terminalRef.current);
+      }
+      return; // Don't initialize again
+    }
+    
+    // If there's an existing but not fully initialized, clean it up
+    if (existing) {
+      console.log('[Terminal] Cleaning up partially initialized terminal for session:', sessionId);
+      existing.dispose();
+      activeTerminals.delete(sessionId);
+    }
+    
+    // Also clean up local ref
+    if (xtermRef.current) {
+      console.log('[Terminal] Cleaning up local terminal ref');
+      xtermRef.current.dispose();
+      xtermRef.current = null;
+      fitAddonRef.current = null;
+      serializeAddonRef.current = null;
+    }
+    
+    // Clean up from previous sessions for this ID
+    initializedSessions.delete(sessionId);
+    
+    // Generate unique init ID for this effect run
+    const initId = `${sessionId}-${Date.now()}`;
+    
+    // Mark this initialization
+    initIdRef.current = initId;
 
-    const theme = currentTheme?.terminal;
+    console.log('[Terminal] Initializing NEW terminal for session:', sessionId, 'initId:', initId);
+
+    const themeTerminal = currentTheme?.terminal;
     const colors = currentTheme?.colors;
 
+    // Map cursor style from settings to xterm format
+    const cursorStyleMap: Record<string, 'block' | 'underline' | 'bar'> = {
+      'block': 'block',
+      'underline': 'underline', 
+      'bar': 'bar',
+    };
+
     const terminal = new Terminal({
-      fontFamily: theme?.font_family || 'JetBrains Mono, Consolas, monospace',
-      fontSize: theme?.font_size || 14,
-      cursorBlink: true,
-      cursorStyle: 'block',
+      // Use settings, falling back to theme, then defaults
+      fontFamily: terminalSettings.font_family || themeTerminal?.font_family || 'JetBrains Mono, Consolas, monospace',
+      fontSize: terminalSettings.font_size || themeTerminal?.font_size || 14,
+      cursorBlink: terminalSettings.cursor_blink,
+      cursorStyle: cursorStyleMap[terminalSettings.cursor_style] || 'block',
       allowTransparency: true,
-      scrollback: 10000, // Keep 10000 lines of scrollback
+      scrollback: terminalSettings.scrollback || 10000,
+      bellSound: terminalSettings.bell_sound ? 'sound' : undefined,
+      bellStyle: terminalSettings.bell_visual ? 'both' : (terminalSettings.bell_sound ? 'sound' : 'none'),
       theme: {
         background: colors?.surface_0 || '#0a0a0f',
         foreground: colors?.foreground || '#e0e0e0',
         cursor: colors?.accent || '#ff0080',
         selectionBackground: colors?.selection || '#ff008044',
-        black: theme?.ansi_colors?.black || '#0a0a0f',
-        red: theme?.ansi_colors?.red || '#ff0055',
-        green: theme?.ansi_colors?.green || '#00ff9f',
-        yellow: theme?.ansi_colors?.yellow || '#ffff00',
-        blue: theme?.ansi_colors?.blue || '#00aaff',
-        magenta: theme?.ansi_colors?.magenta || '#ff00ff',
-        cyan: theme?.ansi_colors?.cyan || '#00ffff',
-        white: theme?.ansi_colors?.white || '#ffffff',
-        brightBlack: theme?.ansi_colors?.bright_black || '#333344',
-        brightRed: theme?.ansi_colors?.bright_red || '#ff5588',
-        brightGreen: theme?.ansi_colors?.bright_green || '#55ffbb',
-        brightYellow: theme?.ansi_colors?.bright_yellow || '#ffff55',
-        brightBlue: theme?.ansi_colors?.bright_blue || '#55bbff',
-        brightMagenta: theme?.ansi_colors?.bright_magenta || '#ff55ff',
-        brightCyan: theme?.ansi_colors?.bright_cyan || '#55ffff',
-        brightWhite: theme?.ansi_colors?.bright_white || '#ffffff',
+        black: themeTerminal?.ansi_colors?.black || '#0a0a0f',
+        red: themeTerminal?.ansi_colors?.red || '#ff0055',
+        green: themeTerminal?.ansi_colors?.green || '#00ff9f',
+        yellow: themeTerminal?.ansi_colors?.yellow || '#ffff00',
+        blue: themeTerminal?.ansi_colors?.blue || '#00aaff',
+        magenta: themeTerminal?.ansi_colors?.magenta || '#ff00ff',
+        cyan: themeTerminal?.ansi_colors?.cyan || '#00ffff',
+        white: themeTerminal?.ansi_colors?.white || '#ffffff',
+        brightBlack: themeTerminal?.ansi_colors?.bright_black || '#333344',
+        brightRed: themeTerminal?.ansi_colors?.bright_red || '#ff5588',
+        brightGreen: themeTerminal?.ansi_colors?.bright_green || '#55ffbb',
+        brightYellow: themeTerminal?.ansi_colors?.bright_yellow || '#ffff55',
+        brightBlue: themeTerminal?.ansi_colors?.bright_blue || '#55bbff',
+        brightMagenta: themeTerminal?.ansi_colors?.bright_magenta || '#ff55ff',
+        brightCyan: themeTerminal?.ansi_colors?.bright_cyan || '#55ffff',
+        brightWhite: themeTerminal?.ansi_colors?.bright_white || '#ffffff',
       },
     });
 
@@ -332,26 +410,54 @@ function TerminalView({
     // Load previous history if available
     loadHistory(terminal);
 
-    // Handle input - send keystrokes to SSH session
-    // If disconnected, trigger auto-reconnect on first keystroke
-    terminal.onData((data) => {
-      const currentSession = useSessionStore.getState().sessions.get(sessionId);
-      
-      if (currentSession?.state === 'Disconnected' || currentSession?.state === 'Error') {
-        // Auto-reconnect on user input
-        console.log('[Terminal] User input while disconnected, triggering reconnect');
-        handleReconnect();
-        return; // Don't send data to dead session
-      }
-      
-      const encoder = new TextEncoder();
-      sendData(sessionId, encoder.encode(data));
-    });
+    // Store disposables for cleanup
+    const disposables: { dispose: () => void }[] = [];
 
-    // Handle resize
-    terminal.onResize(({ cols, rows }) => {
+    // CRITICAL: Check if onData handler already set up for this session
+    // This prevents duplicate keystroke handlers
+    if (!initializedSessions.has(sessionId)) {
+      initializedSessions.add(sessionId);
+      
+      // Handle input - send keystrokes to SSH session
+      // If disconnected, trigger auto-reconnect on first keystroke
+      const dataDisposable = terminal.onData((data) => {
+        const currentSession = useSessionStore.getState().sessions.get(sessionId);
+        
+        if (currentSession?.state === 'Disconnected' || currentSession?.state === 'Error') {
+          // Auto-reconnect on user input
+          console.log('[Terminal] User input while disconnected, triggering reconnect');
+          handleReconnect();
+          return; // Don't send data to dead session
+        }
+        
+        const encoder = new TextEncoder();
+        sendData(sessionId, encoder.encode(data));
+      });
+      disposables.push(dataDisposable);
+      console.log('[Terminal] Registered onData handler for session:', sessionId);
+    } else {
+      console.log('[Terminal] onData handler already exists for session:', sessionId);
+    }
+
+    // Handle resize (these are safe to register multiple times as they just update state)
+    const resizeDisposable = terminal.onResize(({ cols, rows }) => {
       resizePty(sessionId, cols, rows);
     });
+    disposables.push(resizeDisposable);
+
+    // Handle copy-on-select
+    const selectionDisposable = terminal.onSelectionChange(() => {
+      const currentSettings = useSettingsStore.getState().settings;
+      if (currentSettings?.terminal.copy_on_select) {
+        const selection = terminal.getSelection();
+        if (selection && selection.length > 0) {
+          navigator.clipboard.writeText(selection).catch((err) => {
+            console.error('[Terminal] Failed to copy selection:', err);
+          });
+        }
+      }
+    });
+    disposables.push(selectionDisposable);
 
     // Initial resize notification (after a short delay for fit)
     setTimeout(() => {
@@ -361,9 +467,15 @@ function TerminalView({
     // Register data handler with the store
     registerDataHandler(sessionId, handleData);
 
-    return () => {
+    // Create cleanup function
+    const cleanup = () => {
+      console.log('[Terminal] Running cleanup for initId:', initId);
+      
       // Save history before cleanup
       saveHistory();
+      
+      // Dispose all event handlers first
+      disposables.forEach(d => d.dispose());
       
       // Cleanup
       unregisterDataHandler(sessionId);
@@ -371,8 +483,26 @@ function TerminalView({
       xtermRef.current = null;
       fitAddonRef.current = null;
       serializeAddonRef.current = null;
+      initIdRef.current = null;
+      activeTerminals.delete(sessionId);
+      initializedSessions.delete(sessionId);
     };
-  }, [sessionId, sendData, resizePty, currentTheme, registerDataHandler, unregisterDataHandler, handleData, loadHistory, saveHistory, handleReconnect]);
+
+    // Register in global registry for HMR cleanup - mark as fully initialized
+    activeTerminals.set(sessionId, { terminal, dispose: cleanup, initialized: true });
+
+    return () => {
+      console.log('[Terminal] Effect cleanup for initId:', initId);
+      
+      // Only cleanup if this is still the active initialization
+      if (initIdRef.current === initId) {
+        cleanup();
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, currentTheme]);
+  // Note: We intentionally limit dependencies to prevent re-registering handlers
+  // The callbacks use refs and store.getState() to access current values
 
   // Handle window/panel resize
   useEffect(() => {

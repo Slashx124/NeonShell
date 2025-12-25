@@ -9,6 +9,7 @@ import {
   Download,
   Upload,
   Terminal,
+  Cpu,
   type LucideIcon
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -228,6 +229,16 @@ export function getCommands(): CommandItem[] {
       run: (ctx) => {
         ctx.setShowCommandPalette(false);
         ctx.openModal('debugConsole');
+      },
+    },
+    {
+      id: 'ai-settings',
+      title: 'AI Model Settings',
+      subtitle: 'Configure AI models, gateway, and local providers',
+      icon: Cpu,
+      run: (ctx) => {
+        ctx.setShowCommandPalette(false);
+        ctx.openModal('aiSettings');
       },
     },
   ];

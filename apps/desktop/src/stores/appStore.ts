@@ -21,6 +21,7 @@ interface AppState {
   showSidebar: boolean;
   showCommandPalette: boolean;
   showConnectionDialog: boolean;
+  editingProfileId: string | null;
   sidebarTab: 'connections' | 'snippets' | 'files' | 'plugins';
   
   // Tabs
@@ -30,7 +31,7 @@ interface AppState {
   // Actions
   toggleSidebar: () => void;
   setShowCommandPalette: (show: boolean) => void;
-  setShowConnectionDialog: (show: boolean) => void;
+  setShowConnectionDialog: (show: boolean, editingProfileId?: string | null) => void;
   setSidebarTab: (tab: 'connections' | 'snippets' | 'files' | 'plugins') => void;
   
   // Tab actions
@@ -46,6 +47,7 @@ export const useAppStore = create<AppState>()(
     showSidebar: true,
     showCommandPalette: false,
     showConnectionDialog: false,
+    editingProfileId: null,
     sidebarTab: 'connections',
     tabs: [],
     activeTabId: null,
@@ -59,8 +61,9 @@ export const useAppStore = create<AppState>()(
       state.showCommandPalette = show; 
     }),
     
-    setShowConnectionDialog: (show) => set((state) => { 
-      state.showConnectionDialog = show; 
+    setShowConnectionDialog: (show, editingProfileId = null) => set((state) => { 
+      state.showConnectionDialog = show;
+      state.editingProfileId = show ? editingProfileId : null;
     }),
     
     setSidebarTab: (tab) => set((state) => { 

@@ -16,6 +16,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useThemeStore } from '@/stores/themeStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useLogStore } from '@/stores/logStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { getCommands, matchesShortcut, type CommandContext } from '@/lib/commandRegistry';
 
 interface KeyringStatus {
@@ -46,6 +47,7 @@ export function App() {
   const { loadTheme, listThemes } = useThemeStore();
   const { disconnect, loadProfiles, setupListeners } = useSessionStore();
   const { setupListeners: setupLogListeners } = useLogStore();
+  const { loadSettings } = useSettingsStore();
 
   // Build command context for shortcuts
   const getCommandContext = useCallback((): CommandContext => ({
@@ -71,8 +73,9 @@ export function App() {
   ]);
 
   useEffect(() => {
-    // Load theme and profiles on mount
+    // Load theme, settings, and profiles on mount
     loadTheme();
+    loadSettings();
     loadProfiles();
 
     // Setup SSH event listeners
@@ -114,7 +117,7 @@ export function App() {
       cleanupLog();
       unlisteners.forEach((fn) => fn());
     };
-  }, [loadTheme, loadProfiles, setupListeners, setupLogListeners, addToast]);
+  }, [loadTheme, loadSettings, loadProfiles, setupListeners, setupLogListeners, addToast]);
 
   useEffect(() => {
     // Register keyboard shortcuts

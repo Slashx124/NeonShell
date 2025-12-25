@@ -57,3 +57,6 @@ def configure(session_id, session_name='main', enabled=True):
     set_session_var(session_id, 'skip_tmux', not enabled)
     log(f"Auto-tmux configured: session_name={session_name}, enabled={enabled}")
 
+
+
+

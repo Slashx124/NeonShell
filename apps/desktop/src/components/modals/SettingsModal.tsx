@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Save } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useUIStore } from '@/stores/uiStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 interface Settings {
   general: {
@@ -38,6 +39,7 @@ interface Settings {
 
 export function SettingsModal() {
   const { closeModal, addToast } = useUIStore();
+  const { loadSettings: reloadGlobalSettings } = useSettingsStore();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,9 +70,12 @@ export function SettingsModal() {
     setSaving(true);
     try {
       await invoke('save_settings', { settings });
+      // Reload settings in the global store so they take effect immediately
+      await reloadGlobalSettings();
       addToast({
         type: 'success',
         title: 'Settings saved',
+        message: 'Some settings may require reconnecting to take effect.',
       });
       closeModal();
     } catch (error) {
@@ -354,4 +359,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     </button>
   );
 }
+
+
+
 

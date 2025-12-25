@@ -44,3 +44,6 @@ pub async fn install_plugin(
     state.plugins.write().install(&source_path)
 }
 
+
+
+

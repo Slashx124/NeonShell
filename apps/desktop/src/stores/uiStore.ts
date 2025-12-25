@@ -8,6 +8,7 @@ export type ModalType =
   | 'scripts' 
   | 'hotkeys'
   | 'debugConsole'
+  | 'aiSettings'
   | null;
 
 export interface Toast {

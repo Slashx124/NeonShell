@@ -37,6 +37,12 @@ pub enum AppError {
     #[error("Profile not found: {0}")]
     ProfileNotFound(String),
 
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    #[error("Network error: {0}")]
+    Network(String),
+
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
 
@@ -70,6 +76,8 @@ impl From<&AppError> for SerializableError {
             AppError::Serialization(msg) => ("SERIALIZATION_ERROR", msg.clone(), None),
             AppError::SessionNotFound(id) => ("SESSION_NOT_FOUND", format!("Session {} not found", id), None),
             AppError::ProfileNotFound(id) => ("PROFILE_NOT_FOUND", format!("Profile {} not found", id), None),
+            AppError::NotFound(msg) => ("NOT_FOUND", msg.clone(), None),
+            AppError::Network(msg) => ("NETWORK_ERROR", msg.clone(), None),
             AppError::InvalidConfig(msg) => ("INVALID_CONFIG", msg.clone(), None),
             AppError::PermissionDenied(msg) => ("PERMISSION_DENIED", msg.clone(), None),
             AppError::Unknown(msg) => ("UNKNOWN_ERROR", msg.clone(), None),

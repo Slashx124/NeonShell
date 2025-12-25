@@ -4,4 +4,5 @@ export { PluginManager } from './PluginManager';
 export { ScriptsManager } from './ScriptsManager';
 export { HotkeysModal } from './HotkeysModal';
 export { DebugConsoleModal } from './DebugConsoleModal';
+export { AISettingsModal } from './AISettingsModal';
 

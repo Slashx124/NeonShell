@@ -40,3 +40,6 @@ This plugin uses:
 - `notifications` - To show notification popups
 - `terminal` - To add context menu items
 
+
+
+

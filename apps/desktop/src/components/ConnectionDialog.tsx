@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Server, Key, User, Lock, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/stores/appStore';
-import { useSessionStore } from '@/stores/sessionStore';
+import { useSessionStore, Profile } from '@/stores/sessionStore';
 import { invoke } from '@tauri-apps/api/core';
 import { clsx } from 'clsx';
 
@@ -31,8 +31,8 @@ interface ConnectionResult {
 }
 
 export function ConnectionDialog() {
-  const { setShowConnectionDialog, addTab, updateTab } = useAppStore();
-  const { loadProfiles } = useSessionStore();
+  const { setShowConnectionDialog, addTab, updateTab, editingProfileId } = useAppStore();
+  const { loadProfiles, profiles } = useSessionStore();
 
   const [host, setHost] = useState('');
   const [port, setPort] = useState('22');
@@ -46,19 +46,42 @@ export function ConnectionDialog() {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleConnect = async () => {
+  // Determine if we're in edit mode
+  const isEditing = !!editingProfileId;
+  const editingProfile = isEditing ? profiles.find(p => p.id === editingProfileId) : null;
+
+  // Load profile data when editing
+  useEffect(() => {
+    if (editingProfile) {
+      setProfileName(editingProfile.name);
+      setHost(editingProfile.host);
+      setPort(String(editingProfile.port));
+      setUsername(editingProfile.username);
+      
+      // Determine auth type from profile
+      if (editingProfile.auth_method.type === 'password') {
+        setAuthType('password');
+      } else if (editingProfile.auth_method.type === 'key') {
+        setAuthType('key');
+      } else {
+        setAuthType('agent');
+      }
+      
+      // Note: We don't load the actual password/key for security
+      // User needs to re-enter if they want to change credentials
+      setSaveProfile(true); // Already saved
+    }
+  }, [editingProfile]);
+
+  // Save profile without connecting (edit mode only)
+  const handleSaveOnly = async () => {
     if (!host || !username) {
       setError('Host and username are required');
       return;
     }
 
-    if (authType === 'password' && !password) {
-      setError('Password is required');
-      return;
-    }
-
-    if (authType === 'key' && !privateKey) {
-      setError('Private key is required');
+    if (!editingProfile) {
+      setError('No profile to edit');
       return;
     }
 
@@ -66,6 +89,113 @@ export function ConnectionDialog() {
     setConnecting(true);
 
     try {
+      // Build auth method for profile
+      let authMethod: { type: string; password_key?: string; key_id?: string };
+      switch (authType) {
+        case 'password':
+          authMethod = { type: 'password', password_key: `password:${editingProfile.id}` };
+          break;
+        case 'key':
+          authMethod = { type: 'key', key_id: `key:${editingProfile.id}` };
+          break;
+        case 'agent':
+        default:
+          authMethod = { type: 'agent' };
+      }
+
+      // Update profile
+      const updatedProfile: Profile = {
+        ...editingProfile,
+        name: profileName || `${username}@${host}`,
+        host,
+        port: parseInt(port, 10),
+        username,
+        auth_method: authMethod,
+        updated_at: Date.now(),
+      };
+
+      await invoke('save_profile', { profile: updatedProfile, isNew: false });
+
+      // Update credentials in keychain if provided
+      if (authType === 'password' && password) {
+        await invoke('store_secret', { key: `password:${editingProfile.id}`, value: password });
+      } else if (authType === 'key' && privateKey) {
+        await invoke('store_secret', { key: `key:${editingProfile.id}`, value: privateKey });
+        if (passphrase) {
+          await invoke('store_secret', { key: `passphrase:${editingProfile.id}`, value: passphrase });
+        }
+      }
+
+      await loadProfiles();
+      setShowConnectionDialog(false);
+    } catch (err) {
+      console.error('Save error:', err);
+      let errorMsg = 'Failed to save profile';
+      if (typeof err === 'object' && err !== null) {
+        const errObj = err as { message?: string };
+        if (errObj.message) {
+          errorMsg = errObj.message;
+        }
+      } else if (typeof err === 'string') {
+        errorMsg = err;
+      }
+      setError(errorMsg);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!host || !username) {
+      setError('Host and username are required');
+      return;
+    }
+
+    // For new connections, require credentials
+    if (!isEditing) {
+      if (authType === 'password' && !password) {
+        setError('Password is required');
+        return;
+      }
+
+      if (authType === 'key' && !privateKey) {
+        setError('Private key is required');
+        return;
+      }
+    }
+
+    setError(null);
+    setConnecting(true);
+
+    try {
+      // If editing, save the profile first
+      if (isEditing && editingProfile) {
+        await handleSaveOnly();
+        
+        // Now connect using the saved profile
+        const tabTitle = profileName || `${username}@${host}`;
+        const tabId = addTab({
+          title: tabTitle,
+          connected: false,
+        });
+
+        const result = await invoke<ConnectionResult>('connect_profile', {
+          profileId: editingProfile.id,
+        });
+
+        if (result.success && result.session_id) {
+          updateTab(tabId, {
+            sessionId: result.session_id,
+            profileId: editingProfile.id,
+            connected: false,
+          });
+          setShowConnectionDialog(false);
+        } else {
+          setError(result.error || 'Connection failed');
+        }
+        return;
+      }
+
       // Build auth request - secrets sent directly in memory, not stored to keychain
       let auth: AuthRequest;
       switch (authType) {
@@ -153,7 +283,7 @@ export function ConnectionDialog() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Server className="w-5 h-5 text-accent" />
-            New Connection
+            {isEditing ? 'Edit Connection' : 'New Connection'}
           </h2>
           <button
             onClick={() => setShowConnectionDialog(false)}
@@ -302,16 +432,27 @@ export function ConnectionDialog() {
             )}
           </div>
 
-          {/* Save profile */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={saveProfile}
-              onChange={(e) => setSaveProfile(e.target.checked)}
-              className="w-4 h-4 rounded border-border bg-surface-2 text-accent focus:ring-accent"
-            />
-            <span className="text-sm">Save as profile</span>
-          </label>
+          {/* Save profile - hide when editing since it's already saved */}
+          {!isEditing && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveProfile}
+                onChange={(e) => setSaveProfile(e.target.checked)}
+                className="w-4 h-4 rounded border-border bg-surface-2 text-accent focus:ring-accent"
+              />
+              <span className="text-sm">Save as profile</span>
+            </label>
+          )}
+          
+          {/* Edit mode hint about credentials */}
+          {isEditing && (
+            <div className="p-3 rounded-lg bg-surface-2 text-sm text-foreground-muted">
+              <p>
+                Re-enter your credentials to update them, or leave blank to keep existing.
+              </p>
+            </div>
+          )}
 
           {/* Error message */}
           {error && (
@@ -331,6 +472,15 @@ export function ConnectionDialog() {
           >
             Cancel
           </button>
+          {isEditing && (
+            <button
+              onClick={handleSaveOnly}
+              className="btn"
+              disabled={connecting || !host || !username}
+            >
+              Save Only
+            </button>
+          )}
           <button
             onClick={handleConnect}
             className="btn btn-primary"
@@ -339,10 +489,10 @@ export function ConnectionDialog() {
             {connecting ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Connecting...
+                {isEditing ? 'Saving...' : 'Connecting...'}
               </>
             ) : (
-              'Connect'
+              isEditing ? 'Save & Connect' : 'Connect'
             )}
           </button>
         </div>

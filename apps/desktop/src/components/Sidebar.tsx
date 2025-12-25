@@ -8,7 +8,8 @@ import {
   Search,
   ChevronRight,
   Trash2,
-  MoreVertical
+  MoreVertical,
+  Pencil
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '@/stores/appStore';
@@ -101,11 +102,17 @@ interface ConnectionResult {
 }
 
 function ConnectionsList({ profiles }: { profiles: Profile[] }) {
-  const { addTab, updateTab } = useAppStore();
+  const { addTab, updateTab, setShowConnectionDialog } = useAppStore();
   const { loadProfiles } = useSessionStore();
   const { addToast } = useUIStore();
   const [connecting, setConnecting] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+
+  const handleEdit = (profile: Profile, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMenuOpen(null);
+    setShowConnectionDialog(true, profile.id);
+  };
 
   const handleConnect = async (profile: Profile) => {
     setConnecting(profile.id);
@@ -259,6 +266,13 @@ function ConnectionsList({ profiles }: { profiles: Profile[] }) {
           {/* Context menu */}
           {menuOpen === profile.id && (
             <div className="absolute right-2 top-full mt-1 z-10 bg-surface-2 rounded-lg border border-border shadow-lg py-1 min-w-[120px]">
+              <button
+                onClick={(e) => handleEdit(profile, e)}
+                className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-surface-3 flex items-center gap-2"
+              >
+                <Pencil className="w-4 h-4" />
+                Edit
+              </button>
               <button
                 onClick={(e) => handleDelete(profile, e)}
                 className="w-full px-3 py-2 text-left text-sm text-error hover:bg-surface-3 flex items-center gap-2"

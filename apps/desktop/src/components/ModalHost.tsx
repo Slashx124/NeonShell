@@ -6,6 +6,7 @@ import {
   ScriptsManager, 
   HotkeysModal,
   DebugConsoleModal,
+  AISettingsModal,
 } from './modals';
 
 export function ModalHost() {
@@ -26,6 +27,8 @@ export function ModalHost() {
       return <HotkeysModal />;
     case 'debugConsole':
       return <DebugConsoleModal />;
+    case 'aiSettings':
+      return <AISettingsModal />;
     default:
       return null;
   }

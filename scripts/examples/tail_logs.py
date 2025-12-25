@@ -154,3 +154,6 @@ def show_input(placeholder="", prompt="Input"):
     # Placeholder implementation - real implementation uses IPC to frontend
     return None
 
+
+
+

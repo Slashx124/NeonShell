@@ -1,6 +1,6 @@
 [package]
 name = "neonshell"
-version = "0.2.1"
+version = "0.2.2"
 description = "OG Myspace for SSH nerds - A fast, stable, extremely customizable SSH terminal"
 authors = ["NeonShell Contributors"]
 license = "MIT"
@@ -29,6 +29,9 @@ sha2 = "0.10"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+
+# HTTP client for AI providers
+reqwest = { version = "0.11", features = ["json", "blocking"] }
 futures = "0.3"
 
 # Serialization

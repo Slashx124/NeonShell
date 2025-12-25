@@ -44,6 +44,7 @@ export interface Session {
   connected_at?: number;
   disconnected_at?: number;
   disconnect_reason?: string;
+  error_message?: string;
   reconnect_attempts?: number;
 }
 
@@ -96,6 +97,9 @@ interface SessionStoreState {
   // Reconnection callbacks - terminal component can register to be notified
   reconnectCallbacks: Map<string, () => void>;
   
+  // Track if listeners are already set up (singleton pattern)
+  _listenersInitialized: boolean;
+  
   // Session actions
   setActiveSession: (sessionId: string | null) => void;
   registerDataHandler: (sessionId: string, handler: (data: Uint8Array) => void) => void;
@@ -126,6 +130,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   activeSessionId: null,
   dataHandlers: new Map(),
   reconnectCallbacks: new Map(),
+  _listenersInitialized: false,
 
   setActiveSession: (sessionId) => {
     set({ activeSessionId: sessionId });
@@ -271,6 +276,17 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   },
 
   setupListeners: () => {
+    // CRITICAL: Use synchronous check to prevent duplicate listeners
+    // This is the root cause of double input/output - multiple ssh:data listeners
+    if (get()._listenersInitialized) {
+      console.log('[SSH] Listeners already initialized, skipping duplicate registration');
+      return () => {}; // Return no-op cleanup
+    }
+    
+    // Mark as initialized IMMEDIATELY (synchronously) before any async operations
+    set({ _listenersInitialized: true });
+    console.log('[SSH] Setting up event listeners (first time only)');
+
     const unlisteners: UnlistenFn[] = [];
 
     // Listen for session state changes
@@ -291,6 +307,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     }).then((fn) => unlisteners.push(fn));
 
     // Listen for SSH data - route to appropriate handler
+    // This listener must only exist ONCE or data will be duplicated
     listen<SshDataEvent>('ssh:data', (event) => {
       const { session_id, data } = event.payload;
       const handler = get().dataHandlers.get(session_id);
@@ -323,12 +340,23 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
       const sessions = get().sessions;
       const session = sessions.get(event.payload.session_id);
       if (session) {
-        get().updateSession({ ...session, state: 'Error' });
+        get().updateSession({ 
+          ...session, 
+          state: 'Error',
+          error_message: event.payload.message,
+        });
       }
     }).then((fn) => unlisteners.push(fn));
 
-    return () => {
+    // Cleanup should NOT reset _listenersInitialized in normal operation
+    // The listeners should persist for the lifetime of the app
+    // Only in dev with HMR would we want to reset, but that causes the race condition
+    const cleanup = () => {
+      console.log('[SSH] Cleaning up listeners (app shutdown)');
       unlisteners.forEach((fn) => fn());
+      // Don't reset _listenersInitialized - prevents race conditions during HMR
     };
+
+    return cleanup;
   },
 }));

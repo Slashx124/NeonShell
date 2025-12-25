@@ -35,3 +35,6 @@ pub fn get_scripts_dir() -> AppResult<PathBuf> {
     Ok(get_config_dir()?.join("scripts"))
 }
 
+
+
+

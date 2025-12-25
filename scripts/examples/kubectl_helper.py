@@ -250,3 +250,6 @@ def describe_resource():
     if selected:
         run_command(session['id'], f"kubectl describe {selected}")
 
+
+
+
