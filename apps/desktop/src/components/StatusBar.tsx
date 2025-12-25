@@ -9,14 +9,23 @@ import { useAppStore } from '@/stores/appStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useEffect, useState } from 'react';
-
-const APP_VERSION = 'v0.1.0';
+import { getVersion } from '@tauri-apps/api/app';
 
 export function StatusBar() {
   const { tabs, activeTabId } = useAppStore();
   const { sessions } = useSessionStore();
   const { openModal } = useUIStore();
   const [time, setTime] = useState(new Date());
+  const [appVersion, setAppVersion] = useState('');
+
+  // Get app version from Tauri
+  useEffect(() => {
+    getVersion().then((version) => {
+      setAppVersion(`v${version}`);
+    }).catch(() => {
+      setAppVersion('v0.2.2'); // Fallback
+    });
+  }, []);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const activeSession = activeTab?.sessionId 
@@ -39,7 +48,7 @@ export function StatusBar() {
     <div className="h-6 flex items-center px-3 bg-surface-1 border-t border-border text-xs text-foreground-muted select-none">
       {/* Left side - Version */}
       <div className="flex items-center gap-4 flex-1">
-        <span className="font-medium">NeonShell {APP_VERSION}</span>
+        <span className="font-medium">NeonShell {appVersion}</span>
         
         {/* Connection status */}
         {activeSession ? (
